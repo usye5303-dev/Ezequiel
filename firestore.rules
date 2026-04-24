@@ -1,0 +1,120 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 1. Reusable Hardened Global Helpers
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isAuthenticated() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // 2. Validation Blueprints (Anti-Update-Gaps)
+
+    function isValidContract(data) {
+      return data.keys().hasAll(['cliente_nome', 'valor_total', 'userId', 'createdAt']) &&
+             data.cliente_nome is string && data.cliente_nome.size() <= 200 &&
+             data.valor_total is number && data.valor_total >= 0 &&
+             data.userId == request.auth.uid &&
+             data.createdAt == request.time &&
+             (data.get('status', 'Orçamento') in ['Orçamento', 'Negociação', 'Fechado', 'Perdido']) &&
+             (data.get('quantidade', 1) is number);
+    }
+
+    function isValidEntry(data) {
+      return data.keys().hasAll(['valor', 'data', 'userId', 'createdAt']) &&
+             data.valor is number && data.valor >= 0 &&
+             data.userId == request.auth.uid &&
+             data.createdAt == request.time;
+    }
+
+    function isValidExit(data) {
+      return data.keys().hasAll(['valor', 'data', 'categoria', 'userId', 'createdAt']) &&
+             data.valor is number && data.valor >= 0 &&
+             data.categoria is string &&
+             data.userId == request.auth.uid &&
+             data.createdAt == request.time;
+    }
+
+    // 3. Collection Match Blocks
+
+    match /contracts/{contractId} {
+      allow get: if isAuthenticated() && isOwner(existing().userId) && isValidId(contractId);
+      allow list: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      
+      allow create: if isAuthenticated() && isValidContract(incoming()) && isValidId(contractId);
+      
+      allow update: if isAuthenticated() && isOwner(existing().userId) && 
+                      isValidContract(incoming()) &&
+                      incoming().userId == existing().userId &&
+                      incoming().createdAt == existing().createdAt &&
+                      incoming().diff(existing()).affectedKeys().hasOnly([
+                        'cliente_nome', 'cpf', 'data_nascimento', 'telefone', 'cidade', 
+                        'endereco', 'cep', 'data_fechamento', 'valor_total', 'origem', 
+                        'tipo_produto', 'quantidade', 'condicao_pagamento', 'observacoes', 
+                        'status', 'representante_nome', 'comissao_valor', 'comissao_paga',
+                        'anexos', 'updatedAt'
+                      ]) &&
+                      (incoming().get('updatedAt', request.time) == request.time);
+      
+      allow delete: if isAuthenticated() && isOwner(existing().userId);
+    }
+
+    match /entries/{entryId} {
+      allow get: if isAuthenticated() && isOwner(existing().userId) && isValidId(entryId);
+      allow list: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && isValidEntry(incoming()) && isValidId(entryId);
+      allow update: if isAuthenticated() && isOwner(existing().userId) && 
+                      isValidEntry(incoming()) &&
+                      incoming().userId == existing().userId &&
+                      incoming().diff(existing()).affectedKeys().hasOnly(['valor', 'data', 'cliente', 'descricao', 'tipo', 'forma_pagamento', 'contrato_id', 'updatedAt']);
+      allow delete: if isAuthenticated() && isOwner(existing().userId);
+    }
+
+    match /exits/{exitId} {
+      allow get: if isAuthenticated() && isOwner(existing().userId) && isValidId(exitId);
+      allow list: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && isValidExit(incoming()) && isValidId(exitId);
+      allow update: if isAuthenticated() && isOwner(existing().userId) && 
+                      isValidExit(incoming()) &&
+                      incoming().userId == existing().userId &&
+                      incoming().diff(existing()).affectedKeys().hasOnly(['valor', 'data', 'descricao', 'categoria', 'updatedAt']);
+      allow delete: if isAuthenticated() && isOwner(existing().userId);
+    }
+
+    match /installments/{installmentId} {
+      allow get, list: if isAuthenticated() && isOwner(resource.data.userId);
+      allow write: if isAuthenticated() && (resource == null || isOwner(resource.data.userId)) && (request.resource == null || isOwner(request.resource.data.userId));
+    }
+
+    match /fixed_expenses/{expenseId} {
+      allow get: if isAuthenticated() && isOwner(existing().userId);
+      allow list: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && incoming().userId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && isOwner(existing().userId);
+    }
+  }
+}

@@ -1,0 +1,124 @@
+{
+  "entities": {
+    "Contract": {
+      "title": "Contrato",
+      "description": "Contrato de venda de portas",
+      "type": "object",
+      "properties": {
+        "cliente_nome": { "type": "string" },
+        "cpf": { "type": "string" },
+        "data_nascimento": { "type": "string", "format": "date" },
+        "telefone": { "type": "string" },
+        "cidade": { "type": "string" },
+        "endereco": { "type": "string" },
+        "cep": { "type": "string" },
+        "data_fechamento": { "type": "string", "format": "date-time" },
+        "valor_total": { "type": "number" },
+        "origem": { "type": "string", "enum": ["Google", "Instagram", "Indicação", "Representante", "Outros"] },
+        "tipo_produto": { "type": "string", "enum": ["Porta 35mm", "Porta 41mm"] },
+        "quantidade": { "type": "number" },
+        "condicao_pagamento": { "type": "string" },
+        "observacoes": { "type": "string" },
+        "status": { "type": "string", "enum": ["Orçamento", "Negociação", "Fechado", "Perdido"] },
+        "representante_nome": { "type": "string" },
+        "comissao_valor": { "type": "number" },
+        "comissao_paga": { "type": "boolean" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "anexos": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "nome": { "type": "string" },
+              "url": { "type": "string" },
+              "data": { "type": "string" }
+            }
+          }
+        }
+      },
+      "required": ["cliente_nome", "valor_total", "userId"]
+    },
+    "Entry": {
+      "title": "Entrada Financeira",
+      "description": "Registro de entrada de valores",
+      "type": "object",
+      "properties": {
+        "valor": { "type": "number" },
+        "data": { "type": "string", "format": "date-time" },
+        "cliente": { "type": "string" },
+        "descricao": { "type": "string" },
+        "tipo": { "type": "string", "enum": ["sinal", "parcial", "final"] },
+        "forma_pagamento": { "type": "string", "enum": ["pix", "dinheiro", "cartão", "boleto"] },
+        "contrato_id": { "type": "string" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["valor", "data", "userId"]
+    },
+    "Exit": {
+      "title": "Saída Financeira",
+      "description": "Registro de saída de valores",
+      "type": "object",
+      "properties": {
+        "valor": { "type": "number" },
+        "data": { "type": "string", "format": "date-time" },
+        "descricao": { "type": "string" },
+        "categoria": { "type": "string", "enum": ["matéria-prima", "mão de obra", "marketing", "comissão", "despesas fixas", "transporte", "pró-labore gilson", "pró-labore camila", "pró-labore ezequiel"] },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["valor", "data", "categoria", "userId"]
+    },
+    "Installment": {
+      "title": "Parcela",
+      "description": "Parcela vinculada a um contrato",
+      "type": "object",
+      "properties": {
+        "contrato_id": { "type": "string" },
+        "valor": { "type": "number" },
+        "data_vencimento": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["pendente", "pago"] },
+        "userId": { "type": "string" }
+      },
+      "required": ["contrato_id", "valor", "data_vencimento", "status", "userId"]
+    },
+    "FixedExpense": {
+      "title": "Despesa Fixa",
+      "description": "Cadastro de despesas fixas recorrentes",
+      "type": "object",
+      "properties": {
+        "nome": { "type": "string" },
+        "valor_estimado": { "type": "number" },
+        "dia_vencimento": { "type": "number" },
+        "categoria": { "type": "string" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId"]
+    }
+  },
+  "firestore": {
+    "/contracts/{contractId}": {
+      "schema": "Contract",
+      "description": "Coleção de contratos"
+    },
+    "/entries/{entryId}": {
+      "schema": "Entry",
+      "description": "Coleção de entradas financeiras"
+    },
+    "/exits/{exitId}": {
+      "schema": "Exit",
+      "description": "Coleção de saídas financeiras"
+    },
+    "/installments/{installmentId}": {
+      "schema": "Installment",
+      "description": "Coleção de parcelas de contratos"
+    },
+    "/fixed_expenses/{expenseId}": {
+      "schema": "FixedExpense",
+      "description": "Coleção de despesas fixas cadastradas"
+    }
+  }
+}
